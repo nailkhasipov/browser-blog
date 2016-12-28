@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+  </head>
+  <body>
+    <form id="post-form">
+      <label for="title">Title:</label>
+      <br>
+      <input type="text" name="title" required>
+      <br>
+      <label for="content">Content:</label>
+      <br>
+      <textarea name="content" required></textarea>
+      <br>
+      <input type="submit" value="Submit">
+    </form>
+
+    <ul id="wrapper"></ul>
+
+    <script type="text/javascript">
+      const DB_NAME = 'blog';
+      const DB_VERSION = 1;
+      const DB_STORE_NAME = 'posts';
+
+      var db;
+
+      function openDb() {
+        var req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onsuccess = function (evt) {
+          db = this.result;
+          console.log("openDb DONE");
+          renderPosts();
+        };
+        req.onerror = function (evt) {
+          console.error("openDb:", evt.target.errorCode);
+        };
+        req.onupgradeneeded = function (evt) {
+          console.log("openDb.onupgradeneeded");
+          var store = evt.currentTarget.result.createObjectStore(
+            DB_STORE_NAME, { keyPath: 'id', autoIncrement: true });
+
+          store.createIndex('title', 'title', { unique: true });
+          store.createIndex('content', 'content', { unique: false });
+        };
+      }
+
+      function addPost(post) {
+        var transaction = db.transaction(["posts"], "readwrite");
+        var objectStore = transaction.objectStore("posts");
+        var request = objectStore.add(post);
+        request.onsuccess = function(event) {
+          console.log("post added");
+          renderPosts();
+        }
+      }
+
+      function renderPosts() {
+        db.transaction("posts").objectStore("posts").getAll().onsuccess = function(event) {
+          console.log("render posts");
+          var posts = event.target.result.reverse();
+          var wrapper = document.getElementById('wrapper');
+          wrapper.innerHTML = "";
+          for (var i = 0; i < posts.length; i++) {
+            wrapper.innerHTML += "<li><h1>" + posts[i].title + "</h1><p>" + posts[i].content + "</p></li>";
+          }
+        };
+      }
+
+      function addEventListeners() {
+        console.log("addEventListeners");
+
+        var form = document.getElementById("post-form");
+
+        form.addEventListener("submit", function(e) {
+          e.preventDefault();
+          var post = { title: form.title.value, content: form.content.value };
+          form.title.value = "";
+          form.content.value = "";
+          addPost(post);
+        });
+      }
+
+      openDb();
+      addEventListeners();
+    </script>
+  </body>
+</html>
